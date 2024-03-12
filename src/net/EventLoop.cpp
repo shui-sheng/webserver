@@ -14,7 +14,11 @@ class IgnoreSigPipe
  public:
   IgnoreSigPipe()
   {
-    ::signal(SIGPIPE, SIG_IGN);
+    struct sigaction newact;
+    newact.sa_handler = SIG_IGN;
+
+    assert(sigaction(SIGPIPE, &newact, NULL) == 0);
+    //::signal(SIGPIPE, SIG_IGN);
   }
 };
 

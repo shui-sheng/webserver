@@ -1,5 +1,5 @@
 CXX := g++
-CXXFLAGS := -g -pthread -w -fno-inline
+CXXFLAGS := -g -pthread -w -fno-inline -lmysqlclient
 BUILD_DIR := ../../build
 OBJ_DIR := $(BUILD_DIR)/obj
 
@@ -17,7 +17,7 @@ all: $(OBJ_FILES) $(SRC_HEADERS)
 # 生成目标文件规则
 $(OBJ_DIR)/%.o: ./%.cpp
 	mkdir -p $(OBJ_DIR)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) -c $< -o $@ $(CXXFLAGS) 
 
 # 清理规则
 clean:

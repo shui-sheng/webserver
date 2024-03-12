@@ -75,9 +75,10 @@ public:
 		size_t sz = sizeof(void*);
 		void** pp = &p;
 		char buf[sizeof(void*)];
-		snprintf(buf, sizeof(buf), "%x", *pp);
+		snprintf(buf, sizeof(buf), "%p", *pp);
 
 		buffer_.append(buf, sizeof(void*));
+		return *this;
 	}
 
 	self& operator<<(bool v)

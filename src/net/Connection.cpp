@@ -33,13 +33,22 @@ void Connection::handleRead()
     {
         //msgInCallback_(connectSocket_->Fd(), peerAddr_);
     //printf("get info from %d, peeripport=%s\n", connectSocket_->Fd(), peerAddr_.toIpPort().c_str());
-        if(inbuffer_.isvalidRequest())
-        {
-            context_.phraseRequest(inbuffer_);
-            std::string response = context_.getResponse();
-            send(response);
-        }       
-
+        // if(inbuffer_.isvalidRequest())
+        // {
+        //     context_.phraseRequest(inbuffer_);
+        //     std::string response = context_.getResponse();
+        //     send(response);
+        // }       
+        /*
+            int ret = parse_and_build(inbuffer);
+            if(ret == ok_send)
+                send;
+            else 
+                
+        */
+       HttpContext::ProcessState ret = context_.parse_and_build(inbuffer_);
+       if(ret == HttpContext::ProcessState::PROCESS_BUILD_FINISH)
+            send(context_.outstr_);
     }
     else if(n == 0)
     {

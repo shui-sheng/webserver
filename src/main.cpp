@@ -124,7 +124,7 @@ void threadInit(EventLoop* loop)
 }
 int main()
 {
-    AsyncLogging log("LogName", 100, 1000);
+    AsyncLogging log("/log/LogName", 100, 1000);
     g_log = &log;
     Logger::setOutputFunc(asyncLog);
     log.start();

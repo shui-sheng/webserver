@@ -1,65 +1,189 @@
 #ifndef _HTTPCONTEXT_H_
 #define _HTTPCONTEXT_H_
-#include"HttpRequest.h"
-#include"HttpResponse.h"
-#include<string>
 
+#include"Buffer.h"
+#include<unordered_map>
+#include<string>
+//#define WWWROOT_ABSPATH /home/zyf/webserver/wwwroot
 namespace fei
 {
 class HttpContext
 {
 
 public:
-    typedef HttpRequest::Method Method;
-    typedef HttpRequest::Version Version;
-    typedef HttpResponse::StatusCode  StatusCode;
-public:
-    //void loadRequest(Buffer& buf) { request_.loadRequest(buf); }
 
-// struct stat {
-//     dev_t     st_dev;         /* ID of device containing file */
-//     ino_t     st_ino;         /* Inode number */
-//     mode_t    st_mode;        /* File type and mode */
-//     nlink_t   st_nlink;       /* Number of hard links */
-//     uid_t     st_uid;         /* User ID of owner */
-//     gid_t     st_gid;         /* Group ID of owner */
-//     dev_t     st_rdev;        /* Device ID (if special file) */
-//     off_t     st_size;        /* Total size, in bytes */
-//     blksize_t st_blksize;     /* Block size for filesystem I/O */
-//     blkcnt_t  st_blocks;      /* Number of 512B blocks allocated */
+    enum class Method { GET, HEAD, POST, PUT, DELETE, CONNECT, OPTIONS, TRACE, PATCH };
+    enum class Version { HTTP10, HTTP11, HTTP2, HTTP3 };
+    enum class StatusCode
+    { 
+        OK,
+        FORBIDDEN,
+        ERROR,
+        NOCONTENT,
+        CREATED
+    };
+    enum class ProcessState
+    { 
+        PROCESS_PARSE_URL,
+        PROCESS_PARSE_HEADERS,
+        PROCESS_PARSE_BODY,
+        PROCESS_PARSE_ANALYSIS_AND_BUILD,
+        PROCESS_PARSE_BUILD,
+        PROCESS_BUILD_FINISH
 
-//     /* Since Linux 2.6, the kernel supports nanosecond
-//         precision for the following timestamp fields.
-//         For the details before Linux 2.6, see NOTES. */
-
-//     struct timespec st_atim;  /* Time of last access */
-//     struct timespec st_mtim;  /* Time of last modification */
-//     struct timespec st_ctim;  /* Time of last status change */
-
-// #define st_atime st_atim.tv_sec      /* Backward compatibility */
-// #define st_mtime st_mtim.tv_sec
-// #define st_ctime st_ctim.tv_sec
-// };
-
-    StatusCode phraseRequest(Buffer& inbuf)
+    };
+    enum class ParseUrlRet
     {
-        request_.loadRequest(inbuf);
-        response_.phraseRequest(request_);
-    }
+        PARSE_SUCCESS,
+        PARSE_AGAIN,
+        PARSE_ERROR
+    };
+    enum class ParseHeadersRet
+    {
+        PARSE_SUCCESS,
+        PARSE_AGAIN,
+        PARSE_ERROR
+    };
+    enum class ParseBodysRet
+    {
+        PARSE_SUCCESS,
+        PARSE_AGAIN,
+        PARSE_ERROR
+    };
+    enum class AnalysissRet
+    {
+        ANALYSIS_OK,
+        ANALYSIS_FORBIDDEN,
+        ANALUSIS_ERROR
 
-    std::string getResponse() 
-    {   
-        return response_.getResponse();
+    };
+    HttpContext()
+        //:processstate_(ProcessState::PROCESS_PARSE_URL)
+        //,instr_()
+    {
+        
     }
+public:
 
+    ProcessState parse_and_build(Buffer& inbuf)
+    {
+        std::string appendstr = inbuf.retrieveAsString();//append the new data to instr_ so
+        instr_.append(appendstr);
+        // [old_data---new_data---future_data]
+        do
+        {
+            //we need clear the state
+            if(processstate_ == ProcessState::PROCESS_BUILD_FINISH)
+            {
+                processstate_ = ProcessState::PROCESS_PARSE_URL;
+                outstr_.clear();
+            }
+            if(processstate_ == ProcessState::PROCESS_PARSE_URL)
+            {
+                ParseUrlRet ret = parse_Url();
+                if(ret == ParseUrlRet::PARSE_SUCCESS)
+                {
+                    processstate_ = ProcessState::PROCESS_PARSE_HEADERS;
+                }
+                else if(ret == ParseUrlRet::PARSE_AGAIN)
+                {
+                    break;
+                }
+                else if(ret == ParseUrlRet::PARSE_ERROR)
+                {
+                    //error
+                }
+            }
+            if(processstate_ == ProcessState::PROCESS_PARSE_HEADERS)
+            {
+                ParseHeadersRet ret = parse_headers();
+                if(ret == ParseHeadersRet::PARSE_SUCCESS)
+                {
+                    if(method_ == Method::POST)
+                        processstate_ = ProcessState::PROCESS_PARSE_BODY;
+                    else if(method_ == Method::GET)
+                        processstate_ = ProcessState::PROCESS_PARSE_ANALYSIS_AND_BUILD;
+                }
+                else if(ret == ParseHeadersRet::PARSE_AGAIN)
+                {
+                    break;
+                }
+                else if(ret == ParseHeadersRet::PARSE_ERROR)
+                {
+                    
+                }
+            }
+            if(processstate_ == ProcessState::PROCESS_PARSE_BODY)
+            {
+                //ok, we have parse the empty line
+                ParseBodysRet ret = parse_body();
+                if(ret == ParseBodysRet::PARSE_AGAIN)
+                {
+                    break;
+                }
+                else if(ret == ParseBodysRet::PARSE_SUCCESS)
+                {
+                    processstate_ = ProcessState::PROCESS_PARSE_ANALYSIS_AND_BUILD;
+                }
+                else 
+                {
+
+                }
+                
+            }
+            if(processstate_ == ProcessState::PROCESS_PARSE_ANALYSIS_AND_BUILD)
+            {
+                AnalysissRet ret = analysis_and_build();
+                if(ret == AnalysissRet::ANALYSIS_OK)
+                {
+                    processstate_ = ProcessState::PROCESS_PARSE_BUILD;
+                }
+
+
+            }
+            if(processstate_ == ProcessState::PROCESS_PARSE_BUILD)
+            {
+                build_response();
+                processstate_ = ProcessState::PROCESS_BUILD_FINISH;
+            }
+
+        } while (false);
+
+
+        return processstate_;
+        
+
+
+    }
 
 private:
+    ParseUrlRet parse_Url();
+    ParseHeadersRet parse_headers();
+    ParseBodysRet parse_body();
+    AnalysissRet analysis_and_build();
+    void build_response();
+private:
+    Method method_;
+    Version version_;
+    std::string url_raw_path_;
+    //size_t content_length_;
 
-    HttpRequest request_;
-    HttpResponse response_;
-    Buffer inbuf_;
+    std::unordered_map<std::string, std::string> url_args;
+    std::unordered_map<std::string, std::string> headers;
+    std::unordered_map<std::string, std::string> body_args_;
+
+public:
     
+
+    //Buffer inbuf_;
     StatusCode statuscode_;
+    
+    ProcessState processstate_ = ProcessState::PROCESS_PARSE_URL;
+    std::string instr_;
+    std::string outstr_;
+    std::string body_;
+
+
 };    
 }
 

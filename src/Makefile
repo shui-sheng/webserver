@@ -1,5 +1,5 @@
 CXX=g++
-CXXFLAGS=-g -pthread -fno-inline
+CXXFLAGS=-g -pthread -fno-inline -lmysqlclient
 BUILD_DIR := ../build
 OBJ_DIR := $(BUILD_DIR)/obj
 SUBDIRS = log net thread time
