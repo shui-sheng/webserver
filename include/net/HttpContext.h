@@ -162,7 +162,7 @@ private:
     ParseBodysRet parse_body();
     AnalysissRet analysis_and_build();
     void build_response();
-private:
+public:
     Method method_;
     Version version_;
     std::string url_raw_path_;

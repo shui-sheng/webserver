@@ -180,7 +180,10 @@ HttpContext::AnalysissRet HttpContext::analysis_and_build()
             else 
             {
                 statuscode_ == StatusCode::OK;
-                outstr_.append("HTTP/1.0 200 OK\r\n\r\n");
+                outstr_.append("HTTP/1.0 200 OK\r\n");
+                std::string len = std::string("Content-Length: ") + std::to_string(file_sz);
+                outstr_.append(len);
+                outstr_.append("\r\n\r\n");
                 outstr_.append((char*)dynamicmem, file_sz);
             }
 

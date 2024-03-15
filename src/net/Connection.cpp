@@ -1,5 +1,5 @@
 #include"../../include/net/Connection.h"
-
+#include <netinet/tcp.h> 
 using namespace fei;
 Connection::Connection(EventLoop* loop, int acceptfd, InetAddr& localAddr, InetAddr& peerAddr, std::string name)
     :loop_(loop)
@@ -65,6 +65,7 @@ void Connection::handleWrite()
     //outbuffer_.append(inbuffer_.peek());
     // outbuffer_.append("1234over");
     //msgOutCallback_(this, outbuffer_, Timestamp::now());
+
     loop_->assertInLoopThread();
     if(outbuffer_.readableBytes() == 0)
     {
@@ -126,6 +127,21 @@ void Connection::send(char* data, size_t len)
 
 void Connection::sendInLoop(const char* data, size_t len)
 {
+    if(context_.headers["Connection"] == " Keep-Alive")
+    {
+         int keepAlive = 1;      //开启keepalive属性,缺省值:0(关闭)
+        int keepIdle = 5;       //如果在5秒内没有任何数据交互,则进行探测,缺省值:7200(s)
+        int keepInterval = 2;   //探测时发探测包的时间间隔为2秒,缺省值:75(s)
+        int keepCount = 1;      //探测重试的次数,全部超时则认定连接失效,缺省值:9(次)
+        setsockopt(connectChannel_->fd(), SOL_SOCKET,SO_KEEPALIVE,(void *)&keepAlive,sizeof(keepAlive));
+       
+
+        setsockopt(connectChannel_->fd(), IPPROTO_TCP, TCP_KEEPIDLE, (void *)&keepIdle, sizeof(keepIdle));
+        setsockopt(connectChannel_->fd(), IPPROTO_TCP, TCP_KEEPINTVL, (void *)&keepInterval, sizeof(keepInterval));
+        setsockopt(connectChannel_->fd(), IPPROTO_TCP, TCP_KEEPCNT, (void *)&keepCount, sizeof(keepCount));
+
+        //loop_->runAfter(30, std::bind(&Connection::handleClose, this));
+    }
     loop_->assertInLoopThread();
     bool iserror = false;
     size_t remaining = len;
@@ -139,7 +155,7 @@ void Connection::sendInLoop(const char* data, size_t len)
             if(remaining == 0)
             {
                 //do nothing
-                handleClose();
+                //handleClose();
             }
         }
         else 
